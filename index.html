@@ -3,29 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>백테스트 로그 변환기 (최종 서식)</title>
+    <title>백테스트 도구 모음 (변환 & 병합)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
     <style>
         body {
             font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-            background-color: #f4f4f9;
+            background-color: #f0f2f5;
             display: flex;
             justify_content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
+        
+        /* 메인 레이아웃: 두 박스를 나란히 배치 */
+        .main-wrapper {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap; /* 화면 작으면 줄바꿈 */
+            justify_content: center;
+            width: 100%;
+            max-width: 1000px;
+        }
+
         .container {
             background: white;
             padding: 2.5rem;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            width: 420px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            width: 400px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
         }
-        h2 { margin-bottom: 1.5rem; color: #333; font-weight: 700; }
+        
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h2 { margin-bottom: 1.5rem; color: #333; font-weight: 700; font-size: 1.5rem; }
+        .badge { 
+            display: inline-block; 
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            font-size: 0.8rem; 
+            margin-bottom: 10px; 
+            color: white; 
+            font-weight: bold;
+        }
+        .badge-blue { background-color: #007bff; }
+        .badge-green { background-color: #28a745; }
+
         .form-group { margin-bottom: 1.2rem; text-align: left; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555; }
+        
         input[type="number"], input[type="file"] {
             width: 100%;
             padding: 12px;
@@ -33,11 +66,12 @@
             border-radius: 8px;
             box-sizing: border-box;
             font-family: 'Malgun Gothic', sans-serif;
+            background-color: #fcfcfc;
         }
+
         button {
             width: 100%;
             padding: 14px;
-            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 8px;
@@ -46,36 +80,75 @@
             cursor: pointer;
             transition: background 0.3s;
             font-family: 'Malgun Gothic', sans-serif;
+            margin-top: auto; /* 버튼을 하단으로 밀기 */
         }
-        button:hover { background-color: #0056b3; }
-        #status { margin-top: 1.5rem; font-size: 0.95rem; color: #666; min-height: 20px; }
-        .download-ready { color: #28a745 !important; font-weight: bold; }
+        
+        .btn-blue { background-color: #007bff; }
+        .btn-blue:hover { background-color: #0056b3; }
+        
+        .btn-green { background-color: #28a745; }
+        .btn-green:hover { background-color: #218838; }
+
+        .status-msg { margin-top: 1.5rem; font-size: 0.9rem; color: #666; min-height: 20px; }
+        .success { color: #28a745 !important; font-weight: bold; }
         .error { color: #dc3545 !important; font-weight: bold; }
+        
+        .separator {
+            width: 100%;
+            height: 1px;
+            background: #eee;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>📊 로그 → 엑셀 (프로 버전)</h2>
-    
-    <div class="form-group">
-        <label for="lossValue">예상 손절 금액 (User Loss Value)</label>
-        <input type="number" id="lossValue" value="834">
+<div class="main-wrapper">
+    <div class="container">
+        <div><span class="badge badge-blue">기능 1</span></div>
+        <h2>📄 로그 → 엑셀 변환</h2>
+        
+        <div class="form-group">
+            <label for="lossValue">예상 손절 금액 (User Loss Value)</label>
+            <input type="number" id="lossValue" value="834">
+        </div>
+
+        <div class="form-group">
+            <label for="logFile">.log 파일 선택</label>
+            <input type="file" id="logFile" accept=".log,.txt">
+        </div>
+
+        <button class="btn-blue" onclick="processLog()">변환 및 다운로드</button>
+        <div id="statusLog" class="status-msg">파일을 선택해주세요.</div>
     </div>
 
-    <div class="form-group">
-        <label for="logFile">.log 파일 업로드</label>
-        <input type="file" id="logFile" accept=".log,.txt">
-    </div>
+    <div class="container">
+        <div><span class="badge badge-green">기능 2</span></div>
+        <h2>📑 엑셀 통계 병합</h2>
 
-    <button onclick="processLog()">엑셀 변환 및 다운로드</button>
-    <div id="status">파일을 선택하고 버튼을 누르세요.</div>
+        <div class="form-group">
+            <p style="font-size: 0.9rem; color: #666; line-height: 1.4;">
+                여러 개의 결과 엑셀 파일(.xlsx)을 선택하면<br>
+                하나의 통계 파일로 합쳐줍니다.
+            </p>
+        </div>
+
+        <div class="form-group">
+            <label for="excelFiles">.xlsx 파일들 선택 (다중 선택)</label>
+            <input type="file" id="excelFiles" accept=".xlsx" multiple>
+        </div>
+
+        <button class="btn-green" onclick="mergeExcels()">엑셀 병합 및 다운로드</button>
+        <div id="statusMerge" class="status-msg">파일들을 선택해주세요.</div>
+    </div>
 </div>
 
 <script>
+    // --- 공통 유틸리티 함수 ---
     function cleanNumber(valueStr) {
         if (!valueStr) return 0;
-        const cleanStr = valueStr.replace(/[^\d.-]/g, '');
+        if (typeof valueStr === 'number') return valueStr;
+        const cleanStr = String(valueStr).replace(/[^\d.-]/g, '');
         const num = parseFloat(cleanStr);
         return isNaN(num) ? 0 : num;
     }
@@ -87,10 +160,60 @@
         return ((winCount / total) * 100).toFixed(3) + "%";
     }
 
+    // 엑셀 스타일링 함수 (공통 사용)
+    function applyExcelStyle(ws, headerRowIndex1, headerRowIndex2) {
+        // 컬럼 너비
+        ws['!cols'] = [
+            {wch: 22}, {wch: 18}, {wch: 18},
+            {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}
+        ];
+
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+                if (!ws[cellAddress]) continue;
+
+                let style = {
+                    font: { name: "맑은 고딕", sz: 11 },
+                    alignment: { vertical: "center" },
+                    border: {
+                        top: { style: "thin", color: { rgb: "D3D3D3" } },
+                        bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+                        left: { style: "thin", color: { rgb: "D3D3D3" } },
+                        right: { style: "thin", color: { rgb: "D3D3D3" } }
+                    }
+                };
+
+                // 헤더 스타일
+                if (R === headerRowIndex1 || R === headerRowIndex2) {
+                    style.alignment.horizontal = "center";
+                    style.font.bold = true;
+                    style.fill = { fgColor: { rgb: "F2F2F2" } };
+                } else {
+                    // 데이터 스타일
+                    if (C === 0) {
+                        // A2 (Total Row의 값)은 가운데, 나머지는 왼쪽
+                        if (R === headerRowIndex1 + 1) style.alignment.horizontal = "center";
+                        else style.alignment.horizontal = "left";
+                    } else if (C === 1 || C === 2) {
+                        style.alignment.horizontal = "center";
+                    } else {
+                        style.alignment.horizontal = "right";
+                    }
+                }
+                ws[cellAddress].s = style;
+            }
+        }
+    }
+
+    // ==========================================
+    // 기능 1: 로그 변환 로직
+    // ==========================================
     function processLog() {
         const fileInput = document.getElementById('logFile');
         const lossInput = document.getElementById('lossValue');
-        const statusDiv = document.getElementById('status');
+        const statusDiv = document.getElementById('statusLog');
         
         if (!fileInput.files.length) {
             statusDiv.innerHTML = "<span class='error'>파일을 선택해주세요.</span>";
@@ -101,7 +224,7 @@
         const file = fileInput.files[0];
         const reader = new FileReader();
 
-        statusDiv.innerText = "데이터 처리 중...";
+        statusDiv.innerText = "처리 중...";
 
         reader.onload = function(e) {
             try {
@@ -114,7 +237,6 @@
                 let lastCompleteGroups = [];
                 let lastCompleteTotal = null;
 
-                // --- 1. 파싱 로직 ---
                 lines.forEach(line => {
                     line = line.trim();
                     const isTotalHeader = line.includes("[Backtest Report]") && line.includes("백테스팅 합산 결과");
@@ -129,19 +251,15 @@
                             
                             const calculatedLoss = userLossValue * lossCount;
                             const netProfit = profit - calculatedLoss - fee;
-                            
-                            const lastBalance = currentRecord.last_balance || 0;
-                            const lastEquity = currentRecord.last_equity || 0;
-                            const unrealizedPnl = lastEquity - lastBalance;
+                            const unrealizedPnl = (currentRecord.last_equity || 0) - (currentRecord.last_balance || 0);
                             
                             currentRecord.calc_loss_amount = calculatedLoss;
                             currentRecord.calc_net_profit = netProfit;
                             currentRecord.calc_unrealized_pnl = unrealizedPnl;
                             currentRecord.calc_win_rate = calculateWinRate(winCount, lossCount);
 
-                            if (currentType === 'group') {
-                                currentBatchGroups.push(currentRecord);
-                            } else if (currentType === 'total') {
+                            if (currentType === 'group') currentBatchGroups.push(currentRecord);
+                            else if (currentType === 'total') {
                                 lastCompleteGroups = [...currentBatchGroups];
                                 lastCompleteTotal = currentRecord;
                                 currentBatchGroups = [];
@@ -165,141 +283,190 @@
                 });
 
                 if (Object.keys(currentRecord).length > 0) {
-                    const lossCount = currentRecord.raw_loss_count || 0;
-                    const calculatedLoss = userLossValue * lossCount;
-                    const netProfit = (currentRecord.raw_profit || 0) - calculatedLoss - (currentRecord.raw_fee || 0);
-                    const unrealizedPnl = (currentRecord.last_equity || 0) - (currentRecord.last_balance || 0);
+                     const lossCount = currentRecord.raw_loss_count || 0;
+                     const calculatedLoss = userLossValue * lossCount;
+                     currentRecord.calc_loss_amount = calculatedLoss;
+                     currentRecord.calc_net_profit = (currentRecord.raw_profit || 0) - calculatedLoss - (currentRecord.raw_fee || 0);
+                     currentRecord.calc_unrealized_pnl = (currentRecord.last_equity || 0) - (currentRecord.last_balance || 0);
+                     currentRecord.calc_win_rate = calculateWinRate(currentRecord.raw_win_count || 0, lossCount);
 
-                    currentRecord.calc_loss_amount = calculatedLoss;
-                    currentRecord.calc_net_profit = netProfit;
-                    currentRecord.calc_unrealized_pnl = unrealizedPnl;
-                    currentRecord.calc_win_rate = calculateWinRate(currentRecord.raw_win_count || 0, lossCount);
-
-                    if (currentType === 'total') {
-                        lastCompleteTotal = currentRecord;
-                        lastCompleteGroups = [...currentBatchGroups];
-                    }
+                     if (currentType === 'total') {
+                         lastCompleteTotal = currentRecord;
+                         lastCompleteGroups = [...currentBatchGroups];
+                     }
                 }
 
                 if (!lastCompleteTotal) {
-                    statusDiv.innerHTML = "<span class='error'>데이터를 찾을 수 없습니다.</span>";
+                    statusDiv.innerHTML = "<span class='error'>데이터 없음</span>";
                     return;
                 }
 
-                // --- 2. 엑셀 데이터 구성 ---
                 const totalHeaders = ["전체 그룹 수", "시작일", "종료일", "총익절금액", "총손절금액", "총수수료", "총수익금", "총미실현수익", "총익절회수", "총손절회수", "전체승률"];
                 const totalRow = [
-                    lastCompleteTotal.TotalGroups,
-                    lastCompleteTotal.StartDate,
-                    lastCompleteTotal.EndDate,
-                    lastCompleteTotal.raw_profit,
-                    lastCompleteTotal.calc_loss_amount,
-                    lastCompleteTotal.raw_fee,
-                    lastCompleteTotal.calc_net_profit,
-                    lastCompleteTotal.calc_unrealized_pnl,
-                    lastCompleteTotal.raw_win_count,
-                    lastCompleteTotal.raw_loss_count,
-                    lastCompleteTotal.calc_win_rate
+                    lastCompleteTotal.TotalGroups, lastCompleteTotal.StartDate, lastCompleteTotal.EndDate,
+                    lastCompleteTotal.raw_profit, lastCompleteTotal.calc_loss_amount, lastCompleteTotal.raw_fee,
+                    lastCompleteTotal.calc_net_profit, lastCompleteTotal.calc_unrealized_pnl,
+                    lastCompleteTotal.raw_win_count, lastCompleteTotal.raw_loss_count, lastCompleteTotal.calc_win_rate
                 ];
 
                 const groupHeaders = ["Group Name", "시작일", "종료일", "익절금액", "손절금액", "수수료", "수익금", "미실현손익", "익절회수", "손절회수", "승률"];
-                let wsData = [
-                    totalHeaders,
-                    totalRow,
-                    [], [], // 공백
-                    groupHeaders
-                ];
+                let wsData = [totalHeaders, totalRow, [], [], groupHeaders];
 
                 lastCompleteGroups.forEach(g => {
                     wsData.push([
-                        g.GroupName,
-                        g.StartDate,
-                        g.EndDate,
-                        g.raw_profit,
-                        g.calc_loss_amount,
-                        g.raw_fee,
-                        g.calc_net_profit,
-                        g.calc_unrealized_pnl,
-                        g.raw_win_count,
-                        g.raw_loss_count,
-                        g.calc_win_rate
+                        g.GroupName, g.StartDate, g.EndDate,
+                        g.raw_profit, g.calc_loss_amount, g.raw_fee,
+                        g.calc_net_profit, g.calc_unrealized_pnl,
+                        g.raw_win_count, g.raw_loss_count, g.calc_win_rate
                     ]);
                 });
 
                 const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-                // --- 3. 스타일링 (여기가 핵심) ---
-
-                // 컬럼 너비
-                ws['!cols'] = [
-                    {wch: 22}, // A (이름/그룹수)
-                    {wch: 18}, // B (시작일)
-                    {wch: 18}, // C (종료일)
-                    {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}
-                ];
-
-                const range = XLSX.utils.decode_range(ws['!ref']);
-                
-                // 루프 돌며 셀 스타일 적용
-                for (let R = range.s.r; R <= range.e.r; ++R) {
-                    for (let C = range.s.c; C <= range.e.c; ++C) {
-                        const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
-                        if (!ws[cellAddress]) continue;
-
-                        // 기본: 맑은 고딕, 11, 수직 가운데
-                        let style = {
-                            font: { name: "맑은 고딕", sz: 11 },
-                            alignment: { vertical: "center" },
-                            border: {
-                                top: { style: "thin", color: { rgb: "D3D3D3" } },
-                                bottom: { style: "thin", color: { rgb: "D3D3D3" } },
-                                left: { style: "thin", color: { rgb: "D3D3D3" } },
-                                right: { style: "thin", color: { rgb: "D3D3D3" } }
-                            }
-                        };
-
-                        // 1. 헤더 (Row 0: Total Header, Row 4: Group Header)
-                        if (R === 0 || R === 4) {
-                            style.alignment.horizontal = "center"; // 헤더는 가운데
-                            style.font.bold = true;                // 진하게
-                            style.fill = { fgColor: { rgb: "F2F2F2" } }; // 연회색 배경
-                        }
-                        // 2. 데이터 행
-                        else {
-                            // A열 (0번 컬럼)
-                            if (C === 0) {
-                                // A2 (전체 그룹 수 값)은 가운데 정렬
-                                if (R === 1) style.alignment.horizontal = "center";
-                                // 나머지(Group Name)는 왼쪽 정렬
-                                else style.alignment.horizontal = "left";
-                            }
-                            // B, C열 (날짜) -> 가운데 정렬
-                            else if (C === 1 || C === 2) {
-                                style.alignment.horizontal = "center";
-                            }
-                            // 나머지 (숫자, 승률) -> 오른쪽 정렬
-                            else {
-                                style.alignment.horizontal = "right";
-                            }
-                        }
-
-                        ws[cellAddress].s = style;
-                    }
-                }
+                applyExcelStyle(ws, 0, 4);
 
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Total_Result");
                 XLSX.writeFile(wb, "logic_분단위_result.xlsx");
 
-                statusDiv.innerHTML = "<span class='download-ready'>✅ 변환 완료! 파일이 다운로드 되었습니다.</span>";
-
+                statusDiv.innerHTML = "<span class='success'>✅ 다운로드 완료!</span>";
             } catch (err) {
                 console.error(err);
-                statusDiv.innerHTML = "<span class='error'>오류 발생: " + err.message + "</span>";
+                statusDiv.innerHTML = "<span class='error'>오류: " + err.message + "</span>";
             }
         };
-
         reader.readAsText(file, "UTF-8");
+    }
+
+    // ==========================================
+    // 기능 2: 엑셀 병합 로직
+    // ==========================================
+    async function mergeExcels() {
+        const fileInput = document.getElementById('excelFiles');
+        const statusDiv = document.getElementById('statusMerge');
+
+        if (!fileInput.files.length) {
+            statusDiv.innerHTML = "<span class='error'>파일을 선택해주세요.</span>";
+            return;
+        }
+
+        statusDiv.innerText = "병합 처리 중...";
+
+        // 누적 변수 초기화
+        let totalStats = {
+            groupCount: 0,
+            profit: 0, loss: 0, fee: 0, netProfit: 0, unrealized: 0,
+            winCount: 0, lossCount: 0
+        };
+        let startDate = null;
+        let endDate = null;
+        let allGroups = [];
+
+        // 파일 읽기 헬퍼
+        const readExcel = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        resolve(workbook);
+                    } catch (err) { reject(err); }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        };
+
+        try {
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const wb = await readExcel(fileInput.files[i]);
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(ws, {header: 1}); // Array of Arrays
+
+                if (!jsonData || jsonData.length < 2) continue;
+
+                // 1. 상단 합산 (Row 1, Index 1)
+                const headerRow = jsonData[0];
+                const dataRow = jsonData[1];
+                
+                // 컬럼 인덱스 찾기
+                const getIdx = (name) => headerRow.findIndex(h => h && h.toString().includes(name));
+
+                if (!startDate) startDate = dataRow[getIdx("시작일")];
+                if (!endDate) endDate = dataRow[getIdx("종료일")];
+
+                totalStats.groupCount += cleanNumber(dataRow[getIdx("전체 그룹 수")]);
+                totalStats.profit += cleanNumber(dataRow[getIdx("총익절금액")]);
+                totalStats.loss += cleanNumber(dataRow[getIdx("총손절금액")]);
+                totalStats.fee += cleanNumber(dataRow[getIdx("총수수료")]);
+                totalStats.netProfit += cleanNumber(dataRow[getIdx("총수익금")]);
+                
+                // 미실현손익 컬럼명 예외처리
+                let unrealIdx = getIdx("총미실현수익");
+                if (unrealIdx === -1) unrealIdx = getIdx("미실현손익");
+                totalStats.unrealized += cleanNumber(dataRow[unrealIdx]);
+
+                totalStats.winCount += cleanNumber(dataRow[getIdx("총익절회수")]);
+                totalStats.lossCount += cleanNumber(dataRow[getIdx("총손절회수")]);
+
+                // 2. 하단 그룹 리스트 추출
+                // "Group Name"이 있는 행 찾기
+                let splitIdx = -1;
+                for(let r=0; r<jsonData.length; r++) {
+                    if (jsonData[r][0] && jsonData[r][0].toString().includes("Group Name")) {
+                        splitIdx = r;
+                        break;
+                    }
+                }
+
+                if (splitIdx !== -1) {
+                    // splitIdx + 1 부터 끝까지가 데이터
+                    for (let r = splitIdx + 1; r < jsonData.length; r++) {
+                        if (jsonData[r] && jsonData[r].length > 0) {
+                            allGroups.push(jsonData[r]);
+                        }
+                    }
+                }
+            }
+
+            // 3. 최종 데이터 구성
+            // Group Name 기준 정렬
+            allGroups.sort((a, b) => {
+                const nameA = (a[0] || "").toString();
+                const nameB = (b[0] || "").toString();
+                return nameA.localeCompare(nameB);
+            });
+
+            // 전체 승률 재계산
+            const totalWinRate = calculateWinRate(totalStats.winCount, totalStats.lossCount);
+
+            const finalHeaders = ["전체 그룹 수", "시작일", "종료일", "총익절금액", "총손절금액", "총수수료", "총수익금", "총미실현수익", "총익절회수", "총손절회수", "전체승률"];
+            const finalTotalRow = [
+                totalStats.groupCount, startDate, endDate,
+                totalStats.profit, totalStats.loss, totalStats.fee,
+                totalStats.netProfit, totalStats.unrealized,
+                totalStats.winCount, totalStats.lossCount, totalWinRate
+            ];
+
+            const groupHeaders = ["Group Name", "시작일", "종료일", "익절금액", "손절금액", "수수료", "수익금", "미실현손익", "익절회수", "손절회수", "승률"];
+            
+            let wsData = [finalHeaders, finalTotalRow, [], [], groupHeaders];
+            // 그룹 데이터 추가 (컬럼 개수 맞추기 위해 Slice 혹은 매핑 필요할 수 있으나, 보통 구조가 같으므로 push)
+            allGroups.forEach(row => wsData.push(row));
+
+            const newWs = XLSX.utils.aoa_to_sheet(wsData);
+            applyExcelStyle(newWs, 0, 4);
+
+            const newWb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(newWb, newWs, "Total_Result");
+            XLSX.writeFile(newWb, "통계_병합_결과.xlsx");
+
+            statusDiv.innerHTML = "<span class='success'>✅ 병합 완료! 다운로드됩니다.</span>";
+
+        } catch (err) {
+            console.error(err);
+            statusDiv.innerHTML = "<span class='error'>오류: " + err.message + "</span>";
+        }
     }
 </script>
 
