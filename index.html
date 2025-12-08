@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>백테스트 로그 변환기 (맑은고딕 버전)</title>
+    <title>백테스트 로그 변환기 (최종 서식)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
     <style>
         body {
@@ -37,7 +37,7 @@
         button {
             width: 100%;
             padding: 14px;
-            background-color: #28a745;
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 8px;
@@ -47,7 +47,7 @@
             transition: background 0.3s;
             font-family: 'Malgun Gothic', sans-serif;
         }
-        button:hover { background-color: #218838; }
+        button:hover { background-color: #0056b3; }
         #status { margin-top: 1.5rem; font-size: 0.95rem; color: #666; min-height: 20px; }
         .download-ready { color: #28a745 !important; font-weight: bold; }
         .error { color: #dc3545 !important; font-weight: bold; }
@@ -56,7 +56,7 @@
 <body>
 
 <div class="container">
-    <h2>📊 로그 → 엑셀 변환기</h2>
+    <h2>📊 로그 → 엑셀 (프로 버전)</h2>
     
     <div class="form-group">
         <label for="lossValue">예상 손절 금액 (User Loss Value)</label>
@@ -73,7 +73,6 @@
 </div>
 
 <script>
-    // 숫자 정제 함수
     function cleanNumber(valueStr) {
         if (!valueStr) return 0;
         const cleanStr = valueStr.replace(/[^\d.-]/g, '');
@@ -81,7 +80,6 @@
         return isNaN(num) ? 0 : num;
     }
 
-    // 승률 계산 함수
     function calculateWinRate(winCount, lossCount) {
         if (winCount === 0) return "-";
         const total = winCount + lossCount;
@@ -116,7 +114,7 @@
                 let lastCompleteGroups = [];
                 let lastCompleteTotal = null;
 
-                // --- 1. 로그 파싱 ---
+                // --- 1. 파싱 로직 ---
                 lines.forEach(line => {
                     line = line.trim();
                     const isTotalHeader = line.includes("[Backtest Report]") && line.includes("백테스팅 합산 결과");
@@ -156,10 +154,8 @@
 
                     if (line.includes("- Group Name")) currentRecord.GroupName = line.split(":", 2)[1].trim();
                     else if (line.includes("- 전체 그룹 수")) currentRecord.TotalGroups = cleanNumber(line.split(":")[1]);
-                    // 날짜는 문자열 그대로 가져옴
                     else if (line.includes("- 시작일")) currentRecord.StartDate = line.split(":", 2)[1].trim();
                     else if (line.includes("- 종료일")) currentRecord.EndDate = line.split(":", 2)[1].trim();
-                    
                     else if (line.includes("- Last Balance")) currentRecord.last_balance = cleanNumber(line.split(":")[1]);
                     else if (line.includes("- Last Equity")) currentRecord.last_equity = cleanNumber(line.split(":")[1]);
                     else if (line.includes("- 총 익절 회수")) currentRecord.raw_win_count = cleanNumber(line.split(":")[1]);
@@ -168,7 +164,6 @@
                     else if (line.includes("- Total 수수료")) currentRecord.raw_fee = cleanNumber(line.split(":")[1]);
                 });
 
-                // 마지막 버퍼 처리
                 if (Object.keys(currentRecord).length > 0) {
                     const lossCount = currentRecord.raw_loss_count || 0;
                     const calculatedLoss = userLossValue * lossCount;
@@ -191,7 +186,7 @@
                     return;
                 }
 
-                // --- 2. 엑셀 데이터 준비 ---
+                // --- 2. 엑셀 데이터 구성 ---
                 const totalHeaders = ["전체 그룹 수", "시작일", "종료일", "총익절금액", "총손절금액", "총수수료", "총수익금", "총미실현수익", "총익절회수", "총손절회수", "전체승률"];
                 const totalRow = [
                     lastCompleteTotal.TotalGroups,
@@ -211,7 +206,7 @@
                 let wsData = [
                     totalHeaders,
                     totalRow,
-                    [], [], // 공백 2줄
+                    [], [], // 공백
                     groupHeaders
                 ];
 
@@ -233,25 +228,26 @@
 
                 const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-                // --- 3. 스타일 및 폰트 적용 (핵심) ---
-                
-                // (1) 컬럼 너비 설정 (픽셀 단위 조정)
+                // --- 3. 스타일링 (여기가 핵심) ---
+
+                // 컬럼 너비
                 ws['!cols'] = [
-                    {wch: 22}, // A: Group Name / 전체그룹수 (약 18.75)
-                    {wch: 18}, // B: 시작일 (약 16)
-                    {wch: 18}, // C: 종료일 (약 16)
-                    {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17} // 나머지 15
+                    {wch: 22}, // A (이름/그룹수)
+                    {wch: 18}, // B (시작일)
+                    {wch: 18}, // C (종료일)
+                    {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}
                 ];
 
-                // (2) 모든 셀 순회하며 폰트 "맑은 고딕" 적용
                 const range = XLSX.utils.decode_range(ws['!ref']);
+                
+                // 루프 돌며 셀 스타일 적용
                 for (let R = range.s.r; R <= range.e.r; ++R) {
                     for (let C = range.s.c; C <= range.e.c; ++C) {
                         const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
                         if (!ws[cellAddress]) continue;
 
-                        // 기본 스타일: 맑은 고딕, 11pt, 수직 가운데 정렬
-                        let cellStyle = {
+                        // 기본: 맑은 고딕, 11, 수직 가운데
+                        let style = {
                             font: { name: "맑은 고딕", sz: 11 },
                             alignment: { vertical: "center" },
                             border: {
@@ -262,25 +258,35 @@
                             }
                         };
 
-                        // [개별 정렬 규칙]
-                        // A2 셀 (전체 그룹 수 값) -> 가운데 정렬
-                        if (R === 1 && C === 0) {
-                            cellStyle.alignment.horizontal = "center";
+                        // 1. 헤더 (Row 0: Total Header, Row 4: Group Header)
+                        if (R === 0 || R === 4) {
+                            style.alignment.horizontal = "center"; // 헤더는 가운데
+                            style.font.bold = true;                // 진하게
+                            style.fill = { fgColor: { rgb: "F2F2F2" } }; // 연회색 배경
                         }
-                        // B, C열 (날짜) -> 가운데 정렬 (보기 깔끔하게)
-                        else if (C === 1 || C === 2) {
-                            cellStyle.alignment.horizontal = "center";
-                        }
-                        // K열 (승률, Index 10) -> 오른쪽 정렬
-                        else if (C === 10) {
-                            cellStyle.alignment.horizontal = "right";
+                        // 2. 데이터 행
+                        else {
+                            // A열 (0번 컬럼)
+                            if (C === 0) {
+                                // A2 (전체 그룹 수 값)은 가운데 정렬
+                                if (R === 1) style.alignment.horizontal = "center";
+                                // 나머지(Group Name)는 왼쪽 정렬
+                                else style.alignment.horizontal = "left";
+                            }
+                            // B, C열 (날짜) -> 가운데 정렬
+                            else if (C === 1 || C === 2) {
+                                style.alignment.horizontal = "center";
+                            }
+                            // 나머지 (숫자, 승률) -> 오른쪽 정렬
+                            else {
+                                style.alignment.horizontal = "right";
+                            }
                         }
 
-                        ws[cellAddress].s = cellStyle;
+                        ws[cellAddress].s = style;
                     }
                 }
 
-                // --- 4. 파일 저장 ---
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Total_Result");
                 XLSX.writeFile(wb, "logic_분단위_result.xlsx");
