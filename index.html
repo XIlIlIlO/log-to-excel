@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>백테스트 도구 (New 포맷 적용)</title>
+    <title>백테스트 도구 (Final)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
     <style>
         body {
@@ -125,10 +125,19 @@
         return ((winCount / total) * 100).toFixed(3) + "%";
     }
 
-    // 엑셀 스타일 적용 (컬럼 수 12개로 증가됨)
+    // 날짜 포맷 정리 함수 (YYYY-MM-DD HH:MM 형태로 고정)
+    function formatDate(val) {
+        if (!val) return "";
+        const str = String(val).trim();
+        // "2025-06-27 09:00:00" 같은 문자열에서 앞부분(HH:MM)까지만 추출
+        const match = str.match(/^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2})/);
+        if (match) return match[1];
+        // 매칭 안되면 원본 반환 (이미 포맷이 맞거나 다른 형태인 경우)
+        return str;
+    }
+
+    // 엑셀 스타일 적용
     function applyExcelStyle(ws, headerRowIndex1, headerRowIndex2) {
-        // 컬럼 너비 설정 (12개 컬럼)
-        // A(22), B(18), C(18), 나머지(17)
         ws['!cols'] = [
             {wch: 22}, {wch: 18}, {wch: 18},
             {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}, {wch: 17}
@@ -151,15 +160,12 @@
                     }
                 };
 
-                // 헤더 스타일
                 if (R === headerRowIndex1 || R === headerRowIndex2) {
                     style.alignment.horizontal = "center";
                     style.font.bold = true;
                     style.fill = { fgColor: { rgb: "F2F2F2" } };
                 } else {
-                    // 데이터 스타일
                     if (C === 0) {
-                        // A2 (Total Row)는 가운데, 나머지는 왼쪽
                         if (R === headerRowIndex1 + 1) style.alignment.horizontal = "center";
                         else style.alignment.horizontal = "left";
                     } else if (C === 1 || C === 2) {
@@ -174,7 +180,7 @@
     }
 
     // ==========================================
-    // 기능 1: 로그 변환 (수정된 로직)
+    // 기능 1: 로그 변환
     // ==========================================
     function processLog() {
         const fileInput = document.getElementById('logFile');
@@ -209,16 +215,9 @@
                     const profit = rec.raw_profit || 0;
                     const fee = rec.raw_fee || 0;
                     
-                    // 1. 손절금액
                     const calculatedLoss = userLossValue * lossCount;
-                    
-                    // 2. 확정손익금 (익절 - 손절 - 수수료)
                     const realizedPnl = profit - calculatedLoss - fee;
-                    
-                    // 3. 미실현손익 (Last Equity - Last Balance)
                     const unrealizedPnl = (rec.last_equity || 0) - (rec.last_balance || 0);
-                    
-                    // 4. 순이익 (확정 + 미실현)
                     const netProfit = realizedPnl + unrealizedPnl;
                     
                     rec.calc_loss_amount = calculatedLoss;
@@ -236,7 +235,6 @@
                     if (isTotalHeader || isGroupHeader) {
                         if (Object.keys(currentRecord).length > 0) {
                             processRecord(currentRecord);
-
                             if (currentType === 'group') currentBatchGroups.push(currentRecord);
                             else if (currentType === 'total') {
                                 lastCompleteGroups = [...currentBatchGroups];
@@ -251,7 +249,7 @@
 
                     if (line.includes("- Group Name")) currentRecord.GroupName = line.split(":", 2)[1].trim();
                     else if (line.includes("- 전체 그룹 수")) currentRecord.TotalGroups = cleanNumber(line.split(":")[1]);
-                    else if (line.includes("- 시작일")) currentRecord.StartDate = line.split(":", 2)[1].trim();
+                    else if (line.includes("- 시작일")) currentRecord.StartDate = line.split(":", 2)[1].trim(); // 로그는 이미 HH:MM 형태
                     else if (line.includes("- 종료일")) currentRecord.EndDate = line.split(":", 2)[1].trim();
                     else if (line.includes("- Last Balance")) currentRecord.last_balance = cleanNumber(line.split(":")[1]);
                     else if (line.includes("- Last Equity")) currentRecord.last_equity = cleanNumber(line.split(":")[1]);
@@ -274,13 +272,7 @@
                     return;
                 }
 
-                // --- 엑셀 데이터 구성 (New Format) ---
-                const totalHeaders = [
-                    "전체 그룹 수", "시작일", "종료일", 
-                    "총익절금액", "총손절금액", "총수수료", 
-                    "총확정손익금", "총미실현손익", "총순이익",
-                    "총익절횟수", "총손절횟수", "전체승률"
-                ];
+                const totalHeaders = ["전체 그룹 수", "시작일", "종료일", "총익절금액", "총손절금액", "총수수료", "총확정손익금", "총미실현손익", "총순이익", "총익절횟수", "총손절횟수", "전체승률"];
                 const totalRow = [
                     lastCompleteTotal.TotalGroups, lastCompleteTotal.StartDate, lastCompleteTotal.EndDate,
                     lastCompleteTotal.raw_profit, lastCompleteTotal.calc_loss_amount, lastCompleteTotal.raw_fee,
@@ -288,12 +280,7 @@
                     lastCompleteTotal.raw_win_count, lastCompleteTotal.raw_loss_count, lastCompleteTotal.calc_win_rate
                 ];
 
-                const groupHeaders = [
-                    "Group Name", "시작일", "종료일", 
-                    "익절금액", "손절금액", "수수료", 
-                    "확정손익금", "미실현손익", "순이익", 
-                    "익절횟수", "손절횟수", "승률"
-                ];
+                const groupHeaders = ["Group Name", "시작일", "종료일", "익절금액", "손절금액", "수수료", "확정손익금", "미실현손익", "순이익", "익절횟수", "손절횟수", "승률"];
                 let wsData = [totalHeaders, totalRow, [], [], groupHeaders];
 
                 lastCompleteGroups.forEach(g => {
@@ -322,7 +309,7 @@
     }
 
     // ==========================================
-    // 기능 2: 엑셀 병합 (수정된 로직 반영)
+    // 기능 2: 엑셀 병합 (날짜 포맷 적용)
     // ==========================================
     async function mergeExcels() {
         const fileInput = document.getElementById('excelFiles');
@@ -336,8 +323,7 @@
         statusDiv.innerText = "병합 처리 중...";
 
         let totalStats = {
-            groupCount: 0,
-            profit: 0, loss: 0, fee: 0, 
+            groupCount: 0, profit: 0, loss: 0, fee: 0, 
             realized: 0, unrealized: 0, netProfit: 0,
             winCount: 0, lossCount: 0
         };
@@ -364,7 +350,8 @@
             for (let i = 0; i < fileInput.files.length; i++) {
                 const wb = await readExcel(fileInput.files[i]);
                 const ws = wb.Sheets[wb.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(ws, {header: 1});
+                // raw: false -> 엑셀에 보이는 텍스트 그대로 읽어옴 (날짜 깨짐 방지)
+                const jsonData = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false});
 
                 if (!jsonData || jsonData.length < 2) continue;
 
@@ -372,34 +359,31 @@
                 const dataRow = jsonData[1];
                 const getIdx = (name) => headerRow.findIndex(h => h && h.toString().includes(name));
 
-                if (!startDate) startDate = dataRow[getIdx("시작일")];
-                if (!endDate) endDate = dataRow[getIdx("종료일")];
+                // 날짜 포맷팅 적용 (StartDate, EndDate)
+                if (!startDate) startDate = formatDate(dataRow[getIdx("시작일")]);
+                if (!endDate) endDate = formatDate(dataRow[getIdx("종료일")]);
 
-                // 합산 로직 (New Columns)
+                // 합산
                 totalStats.groupCount += cleanNumber(dataRow[getIdx("전체 그룹 수")]);
                 totalStats.profit += cleanNumber(dataRow[getIdx("총익절금액")]);
                 totalStats.loss += cleanNumber(dataRow[getIdx("총손절금액")]);
                 totalStats.fee += cleanNumber(dataRow[getIdx("총수수료")]);
                 
-                // 확정손익금 (구 '총수익금' 호환성 고려)
                 let realizedIdx = getIdx("총확정손익금");
                 if (realizedIdx === -1) realizedIdx = getIdx("총수익금"); 
                 totalStats.realized += cleanNumber(dataRow[realizedIdx]);
 
                 totalStats.unrealized += cleanNumber(dataRow[getIdx("총미실현손익")]);
                 
-                // 순이익 (없으면 계산)
                 let netIdx = getIdx("총순이익");
                 if (netIdx !== -1) {
                     totalStats.netProfit += cleanNumber(dataRow[netIdx]);
                 } else {
-                    // 순이익 컬럼이 없는 구버전 파일인 경우: 확정 + 미실현으로 계산
                     const r = cleanNumber(dataRow[realizedIdx]);
                     const u = cleanNumber(dataRow[getIdx("총미실현손익")]);
                     totalStats.netProfit += (r + u);
                 }
 
-                // 횟수 (구 '회수' 호환성 고려)
                 let winIdx = getIdx("총익절횟수");
                 if (winIdx === -1) winIdx = getIdx("총익절회수");
                 totalStats.winCount += cleanNumber(dataRow[winIdx]);
@@ -408,7 +392,7 @@
                 if (lossIdx === -1) lossIdx = getIdx("총손절회수");
                 totalStats.lossCount += cleanNumber(dataRow[lossIdx]);
 
-                // 하단 그룹 리스트 추출
+                // 그룹 리스트 추출 및 날짜 정제
                 let splitIdx = -1;
                 for(let r=0; r<jsonData.length; r++) {
                     if (jsonData[r][0] && jsonData[r][0].toString().includes("Group Name")) {
@@ -416,10 +400,20 @@
                         break;
                     }
                 }
+                
                 if (splitIdx !== -1) {
+                    // 그룹 헤더에서 인덱스 찾기
+                    const groupHeader = jsonData[splitIdx];
+                    const gStartIdx = groupHeader.findIndex(h => h && h.includes("시작일"));
+                    const gEndIdx = groupHeader.findIndex(h => h && h.includes("종료일"));
+
                     for (let r = splitIdx + 1; r < jsonData.length; r++) {
-                        if (jsonData[r] && jsonData[r].length > 0) {
-                            allGroups.push(jsonData[r]);
+                        let row = jsonData[r];
+                        if (row && row.length > 0) {
+                            // 그룹 행의 날짜도 포맷팅
+                            if (gStartIdx !== -1 && row[gStartIdx]) row[gStartIdx] = formatDate(row[gStartIdx]);
+                            if (gEndIdx !== -1 && row[gEndIdx]) row[gEndIdx] = formatDate(row[gEndIdx]);
+                            allGroups.push(row);
                         }
                     }
                 }
@@ -427,16 +421,9 @@
 
             allGroups.sort((a, b) => (a[0] || "").toString().localeCompare((b[0] || "").toString()));
             
-            // 승률 재계산
             const totalWinRate = calculateWinRate(totalStats.winCount, totalStats.lossCount);
 
-            // 최종 저장 (New Format)
-            const finalHeaders = [
-                "전체 그룹 수", "시작일", "종료일", 
-                "총익절금액", "총손절금액", "총수수료", 
-                "총확정손익금", "총미실현손익", "총순이익",
-                "총익절횟수", "총손절횟수", "전체승률"
-            ];
+            const finalHeaders = ["전체 그룹 수", "시작일", "종료일", "총익절금액", "총손절금액", "총수수료", "총확정손익금", "총미실현손익", "총순이익", "총익절횟수", "총손절횟수", "전체승률"];
             const finalTotalRow = [
                 totalStats.groupCount, startDate, endDate,
                 totalStats.profit, totalStats.loss, totalStats.fee,
@@ -444,12 +431,7 @@
                 totalStats.winCount, totalStats.lossCount, totalWinRate
             ];
 
-            const groupHeaders = [
-                "Group Name", "시작일", "종료일", 
-                "익절금액", "손절금액", "수수료", 
-                "확정손익금", "미실현손익", "순이익", 
-                "익절횟수", "손절횟수", "승률"
-            ];
+            const groupHeaders = ["Group Name", "시작일", "종료일", "익절금액", "손절금액", "수수료", "확정손익금", "미실현손익", "순이익", "익절횟수", "손절횟수", "승률"];
             
             let wsData = [finalHeaders, finalTotalRow, [], [], groupHeaders];
             allGroups.forEach(row => wsData.push(row));
