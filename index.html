@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>백테스트 도구 (Final)</title>
+    <title>백테스트 도구 (시간 단위 고정)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
     <style>
         body {
@@ -125,14 +125,17 @@
         return ((winCount / total) * 100).toFixed(3) + "%";
     }
 
-    // 날짜 포맷 정리 함수 (YYYY-MM-DD HH:MM 형태로 고정)
+    // [핵심 수정] 날짜 포맷 함수 (YYYY-MM-DD HH)
+    // 분(:MM)까지 잘라내고 시 단위까지만 반환합니다.
     function formatDate(val) {
         if (!val) return "";
         const str = String(val).trim();
-        // "2025-06-27 09:00:00" 같은 문자열에서 앞부분(HH:MM)까지만 추출
-        const match = str.match(/^(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2})/);
-        if (match) return match[1];
-        // 매칭 안되면 원본 반환 (이미 포맷이 맞거나 다른 형태인 경우)
+        
+        // 정규식: "2025-06-27 09" 까지만 매칭
+        // 뒤에 :00:00 이나 :30 같은 분/초가 있어도 무시함
+        const match = str.match(/^(\d{4}-\d{2}-\d{2}\s\d{2})/);
+        
+        if (match) return match[1]; // "2025-06-27 09" 반환
         return str;
     }
 
@@ -180,7 +183,7 @@
     }
 
     // ==========================================
-    // 기능 1: 로그 변환
+    // 기능 1: 로그 변환 (시 단위 포맷 적용)
     // ==========================================
     function processLog() {
         const fileInput = document.getElementById('logFile');
@@ -249,8 +252,11 @@
 
                     if (line.includes("- Group Name")) currentRecord.GroupName = line.split(":", 2)[1].trim();
                     else if (line.includes("- 전체 그룹 수")) currentRecord.TotalGroups = cleanNumber(line.split(":")[1]);
-                    else if (line.includes("- 시작일")) currentRecord.StartDate = line.split(":", 2)[1].trim(); // 로그는 이미 HH:MM 형태
-                    else if (line.includes("- 종료일")) currentRecord.EndDate = line.split(":", 2)[1].trim();
+                    
+                    // [변경점] 로그 파싱 시에도 formatDate 적용하여 시 단위로 자름
+                    else if (line.includes("- 시작일")) currentRecord.StartDate = formatDate(line.split(":", 2)[1].trim());
+                    else if (line.includes("- 종료일")) currentRecord.EndDate = formatDate(line.split(":", 2)[1].trim());
+                    
                     else if (line.includes("- Last Balance")) currentRecord.last_balance = cleanNumber(line.split(":")[1]);
                     else if (line.includes("- Last Equity")) currentRecord.last_equity = cleanNumber(line.split(":")[1]);
                     else if (line.includes("- 총 익절 회수")) currentRecord.raw_win_count = cleanNumber(line.split(":")[1]);
@@ -309,7 +315,7 @@
     }
 
     // ==========================================
-    // 기능 2: 엑셀 병합 (날짜 포맷 적용)
+    // 기능 2: 엑셀 병합 (시 단위 포맷 적용)
     // ==========================================
     async function mergeExcels() {
         const fileInput = document.getElementById('excelFiles');
@@ -350,7 +356,6 @@
             for (let i = 0; i < fileInput.files.length; i++) {
                 const wb = await readExcel(fileInput.files[i]);
                 const ws = wb.Sheets[wb.SheetNames[0]];
-                // raw: false -> 엑셀에 보이는 텍스트 그대로 읽어옴 (날짜 깨짐 방지)
                 const jsonData = XLSX.utils.sheet_to_json(ws, {header: 1, raw: false});
 
                 if (!jsonData || jsonData.length < 2) continue;
@@ -359,11 +364,10 @@
                 const dataRow = jsonData[1];
                 const getIdx = (name) => headerRow.findIndex(h => h && h.toString().includes(name));
 
-                // 날짜 포맷팅 적용 (StartDate, EndDate)
+                // [변경점] 병합 시 날짜 포맷 (시 단위로 자름)
                 if (!startDate) startDate = formatDate(dataRow[getIdx("시작일")]);
                 if (!endDate) endDate = formatDate(dataRow[getIdx("종료일")]);
 
-                // 합산
                 totalStats.groupCount += cleanNumber(dataRow[getIdx("전체 그룹 수")]);
                 totalStats.profit += cleanNumber(dataRow[getIdx("총익절금액")]);
                 totalStats.loss += cleanNumber(dataRow[getIdx("총손절금액")]);
@@ -392,7 +396,6 @@
                 if (lossIdx === -1) lossIdx = getIdx("총손절회수");
                 totalStats.lossCount += cleanNumber(dataRow[lossIdx]);
 
-                // 그룹 리스트 추출 및 날짜 정제
                 let splitIdx = -1;
                 for(let r=0; r<jsonData.length; r++) {
                     if (jsonData[r][0] && jsonData[r][0].toString().includes("Group Name")) {
@@ -402,7 +405,6 @@
                 }
                 
                 if (splitIdx !== -1) {
-                    // 그룹 헤더에서 인덱스 찾기
                     const groupHeader = jsonData[splitIdx];
                     const gStartIdx = groupHeader.findIndex(h => h && h.includes("시작일"));
                     const gEndIdx = groupHeader.findIndex(h => h && h.includes("종료일"));
@@ -410,9 +412,10 @@
                     for (let r = splitIdx + 1; r < jsonData.length; r++) {
                         let row = jsonData[r];
                         if (row && row.length > 0) {
-                            // 그룹 행의 날짜도 포맷팅
+                            // [변경점] 그룹 리스트 날짜도 시 단위로 자름
                             if (gStartIdx !== -1 && row[gStartIdx]) row[gStartIdx] = formatDate(row[gStartIdx]);
                             if (gEndIdx !== -1 && row[gEndIdx]) row[gEndIdx] = formatDate(row[gEndIdx]);
+                            
                             allGroups.push(row);
                         }
                     }
